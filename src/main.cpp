@@ -27,10 +27,10 @@
 int main(int argc, char **argv){
 
 	auto commsHandler = std::make_shared<rtcPeerHandler>();
-	auto mongoHandler = std::make_unique<mongoStub>();
+	auto mongoHandler = std::make_unique<mongoStub>(commsHandler);
 
-	mongocxx::options::change_stream options;
 	//voiceEvents collection watcher
+	mongocxx::options::change_stream options;
     mongocxx::change_stream colCs = mongoHandler->getCol().watch(options);
 
 	std::cout << "Server created and listening for events" << std::endl;
@@ -38,6 +38,7 @@ int main(int argc, char **argv){
 	//Check for new messages in the collection
 	for (;;){
 		std::vector<mongoStub::mongoMessage> t = mongoHandler->getNewMessages(&colCs);
+		
 		for(auto &i : t){
 			std::cout << "[" << i.eventName << "] " << std::endl;
 		}

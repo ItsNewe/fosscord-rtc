@@ -10,11 +10,12 @@
 #include <mongocxx/change_stream.hpp>
 #include <bsoncxx/json.hpp>
 #include <bsoncxx/document/element.hpp>
+#include "rtcPeerHandler.hpp"
 
 
 class mongoStub{
 	public:
-		mongoStub();
+		mongoStub(std::shared_ptr<rtcPeerHandler> commsHandler);
 
 		struct mongoMessage{
 			std::string eventName;
@@ -33,8 +34,9 @@ class mongoStub{
 		mongocxx::database db;
 		mongocxx::collection col;
 		mongocxx::change_stream* colCs = nullptr;
+		std::shared_ptr<rtcPeerHandler> commsHandler = nullptr;
 
-		void handleUdpRequest(std::string address, int port, std::string mode);
+		void handleUdpRequest(std::string address, std::string mode);
 		void handleVoiceRequest();
 };
 

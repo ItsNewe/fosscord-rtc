@@ -1,11 +1,12 @@
 #include "mongoStub.hpp"
 
-mongoStub::mongoStub() {
+mongoStub::mongoStub(std::shared_ptr<rtcPeerHandler> commsHandler) {
     if (this->client) {
         this->db = client["fosscord"];
 
         if (this->db) {
             this->col = db["events"];
+			this->commsHandler=commsHandler;
 
         } else {
             std::cout << "db not found";
@@ -27,8 +28,7 @@ std::vector<mongoStub::mongoMessage> mongoStub::getNewMessages(
 
         std::cout << bsoncxx::to_json(event) << std::endl;
 
-        // Only listen to insert events (to avoid "precondition failed: data"
-        // exception)
+        // Only listen to insert events (to avoid "precondition failed: data" exception)
         if (event["operationType"].get_utf8().value.to_string() != "insert") {
             continue;
         }
@@ -40,7 +40,6 @@ std::vector<mongoStub::mongoMessage> mongoStub::getNewMessages(
         if (evName == "UDP_CONNECTION") {
             handleUdpRequest(
 				event["fullDocument"]["data"]["d"]["address"].get_utf8().value.to_string(),
-				event["fullDocument"]["data"]["d"]["port"].get_int32().value,
 				event["fullDocument"]["data"]["d"]["mode"].get_utf8().value.to_string()
 				);
 
@@ -57,19 +56,28 @@ std::vector<mongoStub::mongoMessage> mongoStub::getNewMessages(
 }
 
 
-void mongoStub::handleUdpRequest(std::string address, int port, std::string mode) {
+void mongoStub::handleUdpRequest(std::string address, std::string mode) {
+	printf("UDP start");
     using bsoncxx::builder::basic::kvp;
     using bsoncxx::builder::basic::sub_array;
     using bsoncxx::builder::basic::sub_document;
 
     auto builder = bsoncxx::builder::basic::document{};
 
-	//Handle UDP socket stuff (later tho)
+	
+	uint16_t port = this->commsHandler->openUdpSocket();
+
+	if(port==-1){
+		std::cout << "Error during UDP socket creation" << std::endl;
+	} else {
+		std::cout << "PORT SELECTED: " << port << std::endl;
+	}
 	
     builder.append(kvp("event", "VSERVER_UDP_RESPONSE"));
     builder.append(kvp("op", "4"));
-    builder.append(kvp("d", [](sub_document subdoc) {
+    builder.append(kvp("d", [port](sub_document subdoc) {
 		subdoc.append(kvp("mode", "CRYPT_MODE")),
+		subdoc.append(kvp("port", port)),
 		subdoc.append(kvp("secret_key", [](sub_array subarr) {
             subarr.append(1, 2, 3, 5);  // HOW DO I GEN A SKEY?
         }));

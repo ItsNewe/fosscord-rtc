@@ -4,13 +4,31 @@ rtcPeerHandler::rtcPeerHandler() {
     rtc::InitLogger(rtc::LogLevel::Verbose, NULL);
 }
 
-void rtcPeerHandler::initiateConnection(std::string peerIP, int peerPort) {
-    // Socket connection between client and server
+uint16_t rtcPeerHandler::openUdpSocket(){
+	// Socket connection between client and server
     SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
+	uint16_t port=61000;
+
+	while(this->usedPorts.count(port)!=0){
+		port+=1;
+	}
+
+	if (sock == INVALID_SOCKET){
+		return -1;
+	}
+
     sockaddr_in addr;
-    addr.sin_addr.s_addr = inet_addr(peerIP.c_str());
-    addr.sin_port = htons(peerPort);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(port);
     addr.sin_family = AF_INET;
+	bind(sock, (struct sockaddr *)&addr, sizeof(addr));
+	listen(sock, 5);
+
+	this->usedPorts.insert(port);
+	return port; //Return the port
+
+}
+void rtcPeerHandler::initiateConnection(std::string peerIP, int peerPort) {
 
     rtc::Configuration conf;
     conf.enableIceTcp = false;
@@ -51,33 +69,48 @@ void rtcPeerHandler::initiateConnection(std::string peerIP, int peerPort) {
         std::cout << "Gathering State: " << state << std::endl;
     });
 
-    /*std::tuple<rtc::Track*, rtc::RtcpSrReporter*> addAudio(
-		
-        const std::shared_ptr<rtc::PeerConnection> pc,
-        const uint8_t payloadType, const uint32_t ssrc, const std::string cname,
-        const std::string msid, const std::function<void(void)> onOpen) {
-        auto audio = Description::Audio(cname);
-        audio.addOpusCodec(payloadType);
-        audio.addSSRC(ssrc, cname, msid, cname);
-        auto track = pc->addTrack(audio);
-        // create RTP configuration
-        auto rtpConfig = make_shared<RtpPacketizationConfig>(
-            ssrc, cname, payloadType, OpusRtpPacketizer::defaultClockRate);
-        // create packetizer
-        auto packetizer = make_shared<OpusRtpPacketizer>(rtpConfig);
-        // create opus handler
-        auto opusHandler = make_shared<OpusPacketizationHandler>(packetizer);
+    /*auto audio = rtc::Description::Audio(cname);
+    audio.addOpusCodec(96);
+    audio.addSSRC(ssrc, cname, msid, cname);
+    auto track = pc->addTrack(audio);
+    // create RTP configuration
+    auto rtpConfig = make_shared<RtpPacketizationConfig>(
+        ssrc, cname, payloadType, OpusRtpPacketizer::defaultClockRate);
+    // create packetizer
+    auto packetizer = make_shared<OpusRtpPacketizer>(rtpConfig);
+    // create opus handler
+    auto opusHandler = make_shared<OpusPacketizationHandler>(packetizer);
 
-        // add RTCP SR handler
-        auto srReporter = make_shared<RtcpSrReporter>(rtpConfig);
-        opusHandler->addToChain(srReporter);
+    // add RTCP SR handler
+    auto srReporter = make_shared<RtcpSrReporter>(rtpConfig);
+    opusHandler->addToChain(srReporter);
 
-        // set handler
-        track->setMediaHandler(opusHandler);
-        track->onOpen(onOpen);
-        auto trackData = make_shared<ClientTrackData>(track, srReporter);
-        return trackData;
-    }*/
+    // set handler
+    track->setMediaHandler(opusHandler);
+    track->onOpen([] { std::cout << "Track opened" << std::endl; });
+
+    pc->setLocalDescription();
+    track-// Socket connection between client and server
+    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
+    sockaddr_in addr;
+    addr.sin_addr.s_addr = inet_addr(peerIP.c_str());
+    addr.sin_port = htons(peerPort);
+    addr.sin_family = AF_INET;, this, peerIP](rtc::binary message) {
+            // This is an RTP packet
+            for (auto c : clients) {
+                if (peerIP != c.second.addr) {
+                    sendto(c.first,
+                           reinterpret_cast<const char *>(message.data()),
+                           int(message.size()),
+						   0,
+                           reinterpret_cast<const struct sockaddr *>(c.second.addr),
+                           sizeof(c.second.addr));
+                }
+            }
+        },
+        nullptr);*/
 
     pc->createDataChannel("Fosscord voice connection", rtcConf);
 }
+
+
